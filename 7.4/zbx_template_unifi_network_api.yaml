@@ -1,0 +1,1285 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 36bff6c29af64692839d077febfc7079
+      name: 'Templates/Network devices'
+  host_groups:
+    - uuid: 2a3274d2b480417fbad7af0f60826b7c
+      name: 'UniFi Network Clients'
+    - uuid: c14e97985c8440eca9a4a59af495389e
+      name: 'UniFi Network Devices'
+    - uuid: 4c0f56220ce54f649a2a4df37d4ca0c1
+      name: 'UniFi Network Sites'
+  templates:
+    - uuid: 8d4ea8f16d5044cf97058459be7b5f6a
+      template: 'UniFi Network API'
+      name: 'UniFi Network API'
+      description: 'Tested with UniFi Network API (9.5.21)'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: c3ebff2207424f42a4e081fabe368957
+          name: 'Application Version'
+          type: HTTP_AGENT
+          key: application.version
+          delay: '{$ITEM_APPLICATION.VERSION_UPDATE}'
+          history: '{$ITEM_APPLICATION.VERSION_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.applicationVersion
+          url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/info'
+          headers:
+            - name: Accept
+              value: application/json
+            - name: X-API-KEY
+              value: '{$UNIFI_NETWORK_API_KEY}'
+          triggers:
+            - uuid: bf3b92521aef441990f97279bfe69b24
+              expression: 'change(/UniFi Network API/application.version)=1'
+              name: 'Application Version Changed'
+              priority: INFO
+            - uuid: 96cbe8689a6d4c22b65df5e971d09506
+              expression: 'nodata(/UniFi Network API/application.version,{$TRIGGER_NODATA})=1'
+              name: 'No Data for {$TRIGGER_NODATA}'
+              priority: HIGH
+        - uuid: d6bb0983f9fe45348b4cd8e2785bd941
+          name: 'Sites JSON'
+          type: HTTP_AGENT
+          key: sites.json
+          delay: '{$ITEM_SITES.JSON_UPDATE}'
+          history: '0'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.data
+          url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites'
+          query_fields:
+            - name: limit
+              value: '200'
+          headers:
+            - name: Accept
+              value: application/json
+            - name: X-API-KEY
+              value: '{$UNIFI_NETWORK_API_KEY}'
+      discovery_rules:
+        - uuid: 547add54b79142c29ed100b9b17182a9
+          name: 'Discovery Sites'
+          type: DEPENDENT
+          key: discovery.sites
+          host_prototypes:
+            - uuid: 1a55e15794694c3dbf70993f49731617
+              host: '{#ID}'
+              name: 'UniFi Network - Site: "{#NAME}"'
+              group_links:
+                - group:
+                    name: 'UniFi Network Sites'
+              templates:
+                - name: 'UniFi Network API - Site'
+              macros:
+                - macro: '{$SITE.ID}'
+                  value: '{#ID}'
+                  description: 'Site ID. Used by Template, DO NOT CHANGE OR DELETE.'
+                - macro: '{$SITE.NAME}'
+                  value: '{#NAME}'
+                  description: 'Site NAME. Used by Template, DO NOT CHANGE OR DELETE.'
+              tags:
+                - tag: 'UniFi Network Type'
+                  value: Site
+          master_item:
+            key: sites.json
+          lld_macro_paths:
+            - lld_macro: '{#ID}'
+              path: $.id
+            - lld_macro: '{#NAME}'
+              path: $.name
+      macros:
+        - macro: '{$ITEM_APPLICATION.VERSION_HISTORY}'
+          value: 7d
+          description: 'Item ''application.version'' History'
+        - macro: '{$ITEM_APPLICATION.VERSION_UPDATE}'
+          value: 10m
+          description: 'Item ''application.version'' Update Interval'
+        - macro: '{$ITEM_SITES.JSON_UPDATE}'
+          value: 1h
+          description: 'Item ''sites.json'' Update Interval'
+        - macro: '{$TRIGGER_NODATA}'
+          value: 30m
+          description: 'Trigger ''No Data'' after 30 minutes of missing data'
+        - macro: '{$UNIFI_NETWORK_API_ADDRESS}'
+          description: 'UniFi Network API Address or Dns Name'
+        - macro: '{$UNIFI_NETWORK_API_KEY}'
+          description: 'UniFi Network API Key'
+    - uuid: a260fd3865014482a08fa362e5da666c
+      template: 'UniFi Network API - Client'
+      name: 'UniFi Network API - Client'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: 58d90d8d9a2b4233a47ddc93efbc1ddf
+          name: 'Access Type'
+          type: DEPENDENT
+          key: access.type
+          history: '{$ITEM_ACCESS.TYPE_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.access.type
+          master_item:
+            key: details.json
+          triggers:
+            - uuid: e4d574b8ecd043498e229f21e13d703f
+              expression: 'change(/UniFi Network API - Client/access.type)=1'
+              name: 'Access Type Changed to "{ITEM.VALUE}"'
+              priority: INFO
+        - uuid: fd24bb55be60489ea004929a5c3f8f5e
+          name: 'Connected At'
+          type: DEPENDENT
+          key: connectedAt
+          history: '{$ITEM_CONNECTEDAT_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.connectedAt
+          master_item:
+            key: details.json
+        - uuid: e35ced761d534e8981b399ac91a23da0
+          name: 'Client Details JSON'
+          type: HTTP_AGENT
+          key: details.json
+          delay: '{$ITEM_DETAILS.JSON_UPDATE}'
+          history: '0'
+          value_type: TEXT
+          url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites/{$SITE.ID}/clients/{HOST.HOST}'
+          headers:
+            - name: Accept
+              value: application/json
+            - name: X-API-KEY
+              value: '{$UNIFI_NETWORK_API_KEY}'
+        - uuid: baa8b864dad4479fa7c3bc9dd7aded95
+          name: Id
+          type: DEPENDENT
+          key: id
+          history: '{$ITEM_ID_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.id
+          master_item:
+            key: details.json
+        - uuid: b0cb84241e99411aa4246bd04e0eb890
+          name: IP
+          type: DEPENDENT
+          key: ip
+          history: '{$ITEM_IP_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ipAddress
+          master_item:
+            key: details.json
+          triggers:
+            - uuid: 9e628b816cbd4e5c9d7855a745052b4f
+              expression: 'change(/UniFi Network API - Client/ip)=1'
+              name: 'IP Changed to "{ITEM.VALUE}"'
+              priority: INFO
+        - uuid: b9306da7b8804938b4827e0c91c1581e
+          name: Macaddress
+          type: DEPENDENT
+          key: macaddress
+          history: '{$ITEM_MACADDRESS_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.macAddress
+          master_item:
+            key: details.json
+        - uuid: b85f21429e5c496293d428b21df73489
+          name: Name
+          type: DEPENDENT
+          key: name
+          history: '{$ITEM_NAME_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.name
+          master_item:
+            key: details.json
+        - uuid: c428b5fa78a5464e8ea64191254f2cf3
+          name: Type
+          type: DEPENDENT
+          key: type
+          history: '{$ITEM_TYPE_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.type
+          master_item:
+            key: details.json
+        - uuid: 7336b44622514630bf1d178b622190ad
+          name: 'Uplink Device Id'
+          type: DEPENDENT
+          key: uplink.id
+          history: '{$ITEM_UPLINK.ID_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.uplinkDeviceId
+          master_item:
+            key: details.json
+          triggers:
+            - uuid: 7ed422acadc74126969a1eb55e457faf
+              expression: 'change(/UniFi Network API - Client/uplink.id)=1'
+              name: 'Uplink Device Id Changed to "{ITEM.VALUE}"'
+              priority: INFO
+      macros:
+        - macro: '{$ITEM_ACCESS.TYPE_HISTORY}'
+          value: 1h
+          description: 'Item ''access.type'' History'
+        - macro: '{$ITEM_CONNECTEDAT_HISTORY}'
+          value: 1h
+          description: 'Item ''connectedAt'' History'
+        - macro: '{$ITEM_DETAILS.JSON_UPDATE}'
+          value: 10m
+          description: 'Item ''details.json'' Update Interval'
+        - macro: '{$ITEM_ID_HISTORY}'
+          value: 1h
+          description: 'Item ''id'' History'
+        - macro: '{$ITEM_IP_HISTORY}'
+          value: 1h
+          description: 'Item ''ip'' History'
+        - macro: '{$ITEM_MACADDRESS_HISTORY}'
+          value: 1h
+          description: 'Item ''macaddress'' History'
+        - macro: '{$ITEM_NAME_HISTORY}'
+          value: 1h
+          description: 'Item ''name'' History'
+        - macro: '{$ITEM_TYPE_HISTORY}'
+          value: 1h
+          description: 'Item ''type'' History'
+        - macro: '{$ITEM_UPLINK.ID_HISTORY}'
+          value: 1h
+          description: 'Item ''uplink.id'' History'
+    - uuid: 9effe2d07c5d49e18a608372b170d506
+      template: 'UniFi Network API - Device'
+      name: 'UniFi Network API - Device'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: 825105a0dd3c473eaea10bf5436c1c57
+          name: 'Adopted At'
+          type: DEPENDENT
+          key: adoptedAt
+          history: '{$ITEM_ADOPTEDAT_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.adoptedAt
+          master_item:
+            key: details.json
+        - uuid: 6e0bd840a9bd46a8b9a849617322a1d1
+          name: 'Configuration Id'
+          type: DEPENDENT
+          key: configurationId
+          history: '{$ITEM_CONFIGURATIONID_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.configurationId
+          master_item:
+            key: details.json
+          triggers:
+            - uuid: 8456367bfae24b2fae352d512570bb8d
+              expression: 'change(/UniFi Network API - Device/configurationId)=1'
+              name: 'Configuration Changed'
+              priority: INFO
+        - uuid: fdf8252059174ce5ab3bf4e05c1ab2bb
+          name: 'Cpu Utilization'
+          type: DEPENDENT
+          key: cpu.utilization
+          history: '{$ITEM_CPU.UTILIZATION_HISTORY}'
+          value_type: FLOAT
+          units: '%'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.cpuUtilizationPct
+          master_item:
+            key: statistics.json
+          tags:
+            - tag: cpu
+          triggers:
+            - uuid: c4c1ccfd817a4c61bb07841b5158f1c8
+              expression: 'avg(/UniFi Network API - Device/cpu.utilization,#3)>{$TRIGGER_CPUUTIL_AVERAGE}'
+              name: 'CPU at {ITEM.VALUE}'
+              priority: AVERAGE
+            - uuid: 6c8562518e8e489f8f47d1ad01e4d3d7
+              expression: 'avg(/UniFi Network API - Device/cpu.utilization,#3)>{$TRIGGER_CPUUTIL_WARNING}'
+              name: 'CPU at {ITEM.VALUE}'
+              priority: WARNING
+              dependencies:
+                - name: 'CPU at {ITEM.VALUE}'
+                  expression: 'avg(/UniFi Network API - Device/cpu.utilization,#3)>{$TRIGGER_CPUUTIL_AVERAGE}'
+        - uuid: ec9e3591b38643099d870e217997d675
+          name: 'Device Details JSON'
+          type: HTTP_AGENT
+          key: details.json
+          delay: '{$ITEM_DETAILS.JSON_UPDATE}'
+          history: '0'
+          value_type: TEXT
+          url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites/{$SITE.ID}/devices/{HOST.HOST}'
+          headers:
+            - name: Accept
+              value: application/json
+            - name: X-API-KEY
+              value: '{$UNIFI_NETWORK_API_KEY}'
+        - uuid: 73e731f0378f45f09ccaf5a0f8247151
+          name: 'Firmware Updatable'
+          type: DEPENDENT
+          key: firmware.updatable
+          history: '{$ITEM_FIRMWARE.UPDATABLE_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.firmwareUpdatable
+          master_item:
+            key: details.json
+          tags:
+            - tag: firmware
+          triggers:
+            - uuid: b46969310ffe4d219bfab8e67d58358f
+              expression: 'last(/UniFi Network API - Device/firmware.updatable)="true"'
+              name: 'New Firmware Available'
+              priority: WARNING
+        - uuid: d36340014dc34d61b13effc3f625f07d
+          name: 'Firmware Version'
+          type: DEPENDENT
+          key: firmware.version
+          history: '{$ITEM_FIRMWARE.VERSION_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.firmwareVersion
+          master_item:
+            key: details.json
+          tags:
+            - tag: firmware
+          triggers:
+            - uuid: a9f13a6532544c4199049945572a175e
+              expression: 'change(/UniFi Network API - Device/firmware.version)=1'
+              name: 'Firmware Changed to version "{ITEM.VALUE}"'
+              priority: INFO
+        - uuid: e08f76ff5b614c8287e0b4bdbe7c06ea
+          name: Id
+          type: DEPENDENT
+          key: id
+          history: '{$ITEM_ID_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.id
+          master_item:
+            key: details.json
+        - uuid: 6091c4f0f34d4bcf8b5503559f6af385
+          name: IP
+          type: DEPENDENT
+          key: ip
+          history: '{$ITEM_IP_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ipAddress
+          master_item:
+            key: details.json
+          tags:
+            - tag: network
+          triggers:
+            - uuid: 836ee8678cb145ce80bd9c442c7139dd
+              expression: 'change(/UniFi Network API - Device/ip)=1'
+              name: 'IP Changed to "{ITEM.VALUE}"'
+              priority: INFO
+        - uuid: 15df9264a3b944cbad8c26ca42f78957
+          name: 'Load Avg 1M'
+          type: DEPENDENT
+          key: loadAverage1Min
+          history: '{$ITEM_LOADAVG_HISTORY}'
+          value_type: FLOAT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.loadAverage1Min
+          master_item:
+            key: statistics.json
+          tags:
+            - tag: cpu
+        - uuid: 4faeda3aac434951995a146941e2c06a
+          name: 'Load Avg 5M'
+          type: DEPENDENT
+          key: loadAverage5Min
+          history: '{$ITEM_LOADAVG_HISTORY}'
+          value_type: FLOAT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.loadAverage5Min
+          master_item:
+            key: statistics.json
+          tags:
+            - tag: cpu
+        - uuid: c58d771863c045f696c9ef36bb20f245
+          name: 'Load Avg 15M'
+          type: DEPENDENT
+          key: loadAverage15Min
+          history: '{$ITEM_LOADAVG_HISTORY}'
+          value_type: FLOAT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.loadAverage15Min
+          master_item:
+            key: statistics.json
+          tags:
+            - tag: cpu
+        - uuid: 3063632cd1ee4ccda3baf9353f21b4e2
+          name: Macaddress
+          type: DEPENDENT
+          key: macaddress
+          history: '{$ITEM_MACADDRESS_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.macAddress
+          master_item:
+            key: details.json
+        - uuid: fb9974b8b4f04f189a5c289e3ef39518
+          name: 'Memory Utilization'
+          type: DEPENDENT
+          key: memory.utilization
+          history: '{$ITEM_MEMORY.UTILIZATION_HISTORY}'
+          value_type: FLOAT
+          units: '%'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.memoryUtilizationPct
+          master_item:
+            key: statistics.json
+          tags:
+            - tag: memory
+          triggers:
+            - uuid: d92f8bac381c443a88a6af0d75949e7a
+              expression: 'avg(/UniFi Network API - Device/memory.utilization,#3)>{$TRIGGER_MEMUTIL_AVERAGE}'
+              name: 'Memory at {ITEM.VALUE}'
+              priority: AVERAGE
+            - uuid: 664553a4883d495cbb035daec58515bb
+              expression: 'avg(/UniFi Network API - Device/memory.utilization,#3)>{$TRIGGER_MEMUTIL_WARNING}'
+              name: 'Memory at {ITEM.VALUE}'
+              priority: WARNING
+              dependencies:
+                - name: 'Memory at {ITEM.VALUE}'
+                  expression: 'avg(/UniFi Network API - Device/memory.utilization,#3)>{$TRIGGER_MEMUTIL_AVERAGE}'
+        - uuid: 74230185918d4d3e813a8aed18fc1ef6
+          name: Model
+          type: DEPENDENT
+          key: model
+          history: '{$ITEM_MODEL_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.model
+          master_item:
+            key: details.json
+        - uuid: bc4db9ab04e245edb5df8efeb84c9ce8
+          name: Name
+          type: DEPENDENT
+          key: name
+          history: '{$ITEM_NAME_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.name
+          master_item:
+            key: details.json
+          triggers:
+            - uuid: d93edf2c27764224add64d2e3e8aed04
+              expression: 'change(/UniFi Network API - Device/name)=1'
+              name: 'Name Changed to "{ITEM.VALUE}"'
+              priority: INFO
+        - uuid: 5a2311233e26407db3c101808f4ef6ea
+          name: 'Provisioned At'
+          type: DEPENDENT
+          key: provisionedAt
+          history: '{$ITEM_PROVISIONEDAT_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.provisionedAt
+          master_item:
+            key: details.json
+        - uuid: 96e79913ce84422ca509cd71fd71d392
+          name: State
+          type: DEPENDENT
+          key: state
+          history: '{$ITEM_STATE_HISTORY}'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.state
+          master_item:
+            key: details.json
+          triggers:
+            - uuid: 18834a85514d43efba36c9a504bec86f
+              expression: 'last(/UniFi Network API - Device/state)="OFFLINE" or last(/UniFi Network API - Device/state)="CONNECTION_INTERRUPTED" or last(/UniFi Network API - Device/state)="ISOLATED"'
+              name: 'State is in "{ITEM.VALUE}"'
+              priority: HIGH
+            - uuid: 211320bc8f424c90ad92043ca435ea47
+              expression: 'last(/UniFi Network API - Device/state)="PENDING_ADOPTION" or last(/UniFi Network API - Device/state)="DELETING"'
+              name: 'State is in "{ITEM.VALUE}"'
+              priority: WARNING
+            - uuid: 1a32d0be09e4471394548038d99e6c55
+              expression: 'last(/UniFi Network API - Device/state)="UPDATING" or last(/UniFi Network API - Device/state)="GETTING_READY"'
+              name: 'State is in "{ITEM.VALUE}"'
+              priority: INFO
+        - uuid: 4b17b0e66d0e44028751b97f42e19e9b
+          name: 'Device Statistics JSON'
+          type: HTTP_AGENT
+          key: statistics.json
+          delay: '{$ITEM_STATISTICS.JSON_UPDATE}'
+          history: '0'
+          value_type: TEXT
+          url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites/{$SITE.ID}/devices/{HOST.HOST}/statistics/latest'
+          headers:
+            - name: Accept
+              value: application/json
+            - name: X-API-KEY
+              value: '{$UNIFI_NETWORK_API_KEY}'
+        - uuid: fe29e1a31a46429196a2571d6f4429e3
+          name: 'Uplink Rx Rate'
+          type: DEPENDENT
+          key: uplink.rx
+          history: '{$ITEM_UPLINK_HISTORY}'
+          value_type: FLOAT
+          units: bps
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.uplink.rxRateBps
+          master_item:
+            key: statistics.json
+          tags:
+            - tag: network
+          triggers:
+            - uuid: 9ea9f1aae4cb4b4dad533881688d49af
+              expression: 'avg(/UniFi Network API - Device/uplink.rx,#3)>{$TRIGGER_DOWNLOAD_AVERAGE}*1000000'
+              name: 'Uplink Download at {ITEM.VALUE}'
+              status: DISABLED
+              priority: AVERAGE
+        - uuid: f71d116c83b347f690ed21ab559a7417
+          name: 'Uplink Tx Rate'
+          type: DEPENDENT
+          key: uplink.tx
+          history: '{$ITEM_UPLINK_HISTORY}'
+          value_type: FLOAT
+          units: bps
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.uplink.txRateBps
+          master_item:
+            key: statistics.json
+          tags:
+            - tag: network
+          triggers:
+            - uuid: 11160a3498d6448a8fa0bcf239967364
+              expression: 'avg(/UniFi Network API - Device/uplink.tx,#3)>{$TRIGGER_UPLOAD_AVERAGE}*1000000'
+              name: 'Uplink Upload at {ITEM.VALUE}'
+              status: DISABLED
+              priority: AVERAGE
+        - uuid: 94f25b53cfa1429a843e51c8e2021f32
+          name: Uptime
+          type: DEPENDENT
+          key: uptime
+          history: '{$ITEM_UPTIME_HISTORY}'
+          units: uptime
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.uptimeSec
+          master_item:
+            key: statistics.json
+          triggers:
+            - uuid: 9484a42938aa4a87899e9e34cc16a285
+              expression: 'last(/UniFi Network API - Device/uptime)<last(/UniFi Network API - Device/uptime,#2)'
+              name: 'Device Rebooted, last Uptime "{ITEM.VALUE2}"'
+              priority: INFO
+      discovery_rules:
+        - uuid: d601092ad5394965b03d1669b17d77d3
+          name: 'Discovery Ports'
+          type: DEPENDENT
+          key: discovery.ports
+          item_prototypes:
+            - uuid: 5a86f0737a0e47519e41e2bcb1a11311
+              name: 'Port "{#IDX}" - Connector'
+              type: DEPENDENT
+              key: 'port.connector[{#IDX}]'
+              history: '{$ITEM_PORT.CONNECTOR_HISTORY}'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].connector'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: ports
+            - uuid: 7a6b3424d505467c875bf8b9348b170e
+              name: 'Port "{#IDX}" - Max Speed'
+              type: DEPENDENT
+              key: 'port.maxSpeed[{#IDX}]'
+              history: '{$ITEM_PORT.MAXSPEED_HISTORY}'
+              trends: '0'
+              units: bps
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].maxSpeedMbps'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+                - type: MULTIPLIER
+                  parameters:
+                    - '1000000'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: ports
+            - uuid: 417bb8e4137247589f087e35fe4bcc87
+              name: 'Port "{#IDX}" - Poe Enabled'
+              type: DEPENDENT
+              key: 'port.poe.enabled[{#IDX}]'
+              history: '{$ITEM_PORT.POE.ENABLED_HISTORY}'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].poe.enabled'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: poe
+                - tag: ports
+              trigger_prototypes:
+                - uuid: 8017a208421c4a519c02f0cb4b50c0ce
+                  expression: 'change(/UniFi Network API - Device/port.poe.enabled[{#IDX}])=1'
+                  name: 'Port "{#IDX}" POE Enabled Changed to "{ITEM.VALUE}"'
+                  priority: INFO
+            - uuid: 93da3120174b4c49affa212d893401a5
+              name: 'Port "{#IDX}" - Poe Standard'
+              type: DEPENDENT
+              key: 'port.poe.standard[{#IDX}]'
+              history: '{$ITEM_PORT.POE.STANDARD_HISTORY}'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].poe.standard'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: poe
+                - tag: ports
+              trigger_prototypes:
+                - uuid: d1aa8b74f6d540eeaab7486451d45bb9
+                  expression: 'change(/UniFi Network API - Device/port.poe.standard[{#IDX}])=1'
+                  name: 'Port "{#IDX}" POE Standard Changed to "{ITEM.VALUE}"'
+                  priority: INFO
+            - uuid: 2ef3176d09094b33981666ddc27221bb
+              name: 'Port "{#IDX}" - Poe State'
+              type: DEPENDENT
+              key: 'port.poe.state[{#IDX}]'
+              history: '{$ITEM_PORT.POE.STATE_HISTORY}'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].poe.state'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: poe
+                - tag: ports
+              trigger_prototypes:
+                - uuid: 2476b63daeac43b4b8692e70e0cefe52
+                  expression: 'change(/UniFi Network API - Device/port.poe.state[{#IDX}])=1'
+                  name: 'Port "{#IDX}" POE Status Changed to "{ITEM.VALUE}"'
+                  priority: INFO
+            - uuid: 9fbe986897a445a198ea7fb884bd553d
+              name: 'Port "{#IDX}" - Poe Type'
+              type: DEPENDENT
+              key: 'port.poe.type[{#IDX}]'
+              history: '{$ITEM_PORT.POE.TYPE_HISTORY}'
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].poe.type'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: poe
+                - tag: ports
+            - uuid: e57c565d8d984aa69ee2efb4c7fd6325
+              name: 'Port "{#IDX}" - Speed'
+              type: DEPENDENT
+              key: 'port.speed[{#IDX}]'
+              history: '{$ITEM_PORT.SPEED_HISTORY}'
+              trends: '0'
+              units: bps
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].speedMbps'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+                - type: MULTIPLIER
+                  parameters:
+                    - '1000000'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: ports
+              trigger_prototypes:
+                - uuid: 5a746bb6fe1e4cbb974ffb6877d61066
+                  expression: 'change(/UniFi Network API - Device/port.speed[{#IDX}])=1'
+                  name: 'Port "{#IDX}" Speed Changed to "{ITEM.VALUE}"'
+                  priority: INFO
+            - uuid: 4af687f0c3024a459d914161950c248b
+              name: 'Port "{#IDX}" - State'
+              type: DEPENDENT
+              key: 'port.state[{#IDX}]'
+              history: '{$ITEM_PORT.STATE_HISTORY}'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.ports[?(@.idx==''{#IDX}'')].state'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: ports
+              trigger_prototypes:
+                - uuid: 5a0d37ed0111483f8e2a9c1a8cd1d5fc
+                  expression: 'change(/UniFi Network API - Device/port.state[{#IDX}])=1'
+                  name: 'Port "{#IDX}" Status Change to "{ITEM.VALUE}"'
+                  priority: INFO
+          master_item:
+            key: details.json
+          lld_macro_paths:
+            - lld_macro: '{#IDX}'
+              path: $.idx
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.interfaces.ports
+        - uuid: e3a9fbb1f35444d1b76fee7de2a19d6a
+          name: 'Discovery Radios'
+          type: DEPENDENT
+          key: discovery.radios
+          item_prototypes:
+            - uuid: faf8a0ba4ef94160894ef94b6dc8aa21
+              name: 'Radio "{#FRQ}GHz" - Channel Width'
+              type: DEPENDENT
+              key: 'radio.channelWidth[{#FRQ}]'
+              history: '{$ITEM_RADIO.CHANNELWIDTH_HISTORY}'
+              trends: '0'
+              units: Hz
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.radios[?(@.frequencyGHz==''{#FRQ}'')].channelWidthMHz'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+                - type: MULTIPLIER
+                  parameters:
+                    - '1000000'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: radios
+              trigger_prototypes:
+                - uuid: 9882fa4fc5c64371be3de698e11829f8
+                  expression: 'change(/UniFi Network API - Device/radio.channelWidth[{#FRQ}])=1'
+                  name: 'Radio "{#FRQ}GHz" Channel Width Changed to "{ITEM.VALUE}"'
+                  priority: INFO
+            - uuid: 9654c631956c44629043c6c4493911c6
+              name: 'Radio "{#FRQ}GHz" - Channel'
+              type: DEPENDENT
+              key: 'radio.channel[{#FRQ}]'
+              history: '{$ITEM_RADIO.CHANNEL_HISTORY}'
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.radios[?(@.frequencyGHz==''{#FRQ}'')].channel'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: radios
+              trigger_prototypes:
+                - uuid: 2a29c7664ac84d3284b6b7f0d6b27165
+                  expression: 'change(/UniFi Network API - Device/radio.channel[{#FRQ}])=1'
+                  name: 'Radio "{#FRQ}GHz" Channel Changed to "{ITEM.VALUE}"'
+                  priority: INFO
+            - uuid: e75c333e23364b339fe05fa4d18869b9
+              name: 'Radio "{#FRQ}GHz" - Standard'
+              type: DEPENDENT
+              key: 'radio.standard[{#FRQ}]'
+              history: '{$ITEM_RADIO.STANDARD_HISTORY}'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.radios[?(@.frequencyGHz==''{#FRQ}'')].wlanStandard'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: details.json
+              tags:
+                - tag: network
+                - tag: radios
+              trigger_prototypes:
+                - uuid: 5c1587e559544424bfd6fb04111d0cc8
+                  expression: 'change(/UniFi Network API - Device/radio.standard[{#FRQ}])=1'
+                  name: 'Radio "{#FRQ}GHz" Standard Changed to "{ITEM.VALUE}"'
+                  priority: INFO
+          master_item:
+            key: details.json
+          lld_macro_paths:
+            - lld_macro: '{#FRQ}'
+              path: $.frequencyGHz
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.interfaces.radios
+        - uuid: 823b7bd353e74e49a80437a97d2f9675
+          name: 'Discovery Radios Statistics'
+          type: DEPENDENT
+          key: discovery.radios.statistics
+          item_prototypes:
+            - uuid: ac233077f365459c9619598831f7b9a4
+              name: 'Radio Statistics "{#FRQ}" - Tx Retries'
+              type: DEPENDENT
+              key: 'radios.txRestries[{#FRQ}]'
+              history: '{$ITEM_RADIO.TXRETRIES_HISTORY}'
+              value_type: FLOAT
+              units: '%'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.interfaces.radios[?(@.frequencyGHz==''{#FRQ}'')].txRetriesPct'
+                - type: JSONPATH
+                  parameters:
+                    - '$.[0]'
+              master_item:
+                key: statistics.json
+              tags:
+                - tag: network
+                - tag: radios
+              trigger_prototypes:
+                - uuid: e5c6ab56a28a422b9857e9507f807a0e
+                  expression: 'min(/UniFi Network API - Device/radios.txRestries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_AVERAGE}'
+                  name: 'Radios "{#FRQ}GHz" Tx Retries > {$TRIGGER_TXRETRIES_AVERAGE} % in last "{$TRIGGER_TXRETRIES_TIME}"'
+                  priority: AVERAGE
+                - uuid: 8482d97fc9df4dbcbda4b891c134ec8d
+                  expression: 'min(/UniFi Network API - Device/radios.txRestries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_WARNING}'
+                  name: 'Radios "{#FRQ}GHz" Tx Retries > {$TRIGGER_TXRETRIES_WARNING} % in last "{$TRIGGER_TXRETRIES_TIME}"'
+                  priority: WARNING
+                  dependencies:
+                    - name: 'Radios "{#FRQ}GHz" Tx Retries > {$TRIGGER_TXRETRIES_AVERAGE} % in last "{$TRIGGER_TXRETRIES_TIME}"'
+                      expression: 'min(/UniFi Network API - Device/radios.txRestries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_AVERAGE}'
+          master_item:
+            key: statistics.json
+          lld_macro_paths:
+            - lld_macro: '{#FRQ}'
+              path: $.frequencyGHz
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.interfaces.radios
+      macros:
+        - macro: '{$ITEM_ADOPTEDAT_HISTORY}'
+          value: 1h
+          description: 'Item ''adoptedAt'' History'
+        - macro: '{$ITEM_CONFIGURATIONID_HISTORY}'
+          value: 1h
+          description: 'Item ''configurationId'' History'
+        - macro: '{$ITEM_CPU.UTILIZATION_HISTORY}'
+          value: 7d
+          description: 'Item ''cpu.utilization'' History'
+        - macro: '{$ITEM_DETAILS.JSON_UPDATE}'
+          value: 10m
+          description: 'Item ''details.json'' Update Interval'
+        - macro: '{$ITEM_FIRMWARE.UPDATABLE_HISTORY}'
+          value: 1h
+          description: 'Item ''firmware.updatable'' History'
+        - macro: '{$ITEM_FIRMWARE.VERSION_HISTORY}'
+          value: 1h
+          description: 'Item ''firmware.version'' History'
+        - macro: '{$ITEM_ID_HISTORY}'
+          value: 1h
+          description: 'Item ''id'' History'
+        - macro: '{$ITEM_IP_HISTORY}'
+          value: 1h
+          description: 'Item ''ip'' History'
+        - macro: '{$ITEM_LOADAVG_HISTORY}'
+          value: 7d
+          description: 'Item ''loadAverage1Min'' History'
+        - macro: '{$ITEM_MACADDRESS_HISTORY}'
+          value: 1h
+          description: 'Item ''macaddress'' History'
+        - macro: '{$ITEM_MEMORY.UTILIZATION_HISTORY}'
+          value: 7d
+          description: 'Item ''memory.utilization'' History'
+        - macro: '{$ITEM_MODEL_HISTORY}'
+          value: 1h
+          description: 'Item ''model'' History'
+        - macro: '{$ITEM_NAME_HISTORY}'
+          value: 1h
+          description: 'Item ''name'' History'
+        - macro: '{$ITEM_PORT.CONNECTOR_HISTORY}'
+          value: 1h
+          description: 'Item ''port.connector'' History'
+        - macro: '{$ITEM_PORT.MAXSPEED_HISTORY}'
+          value: 1h
+          description: 'Item ''port.maxSpeed'' History'
+        - macro: '{$ITEM_PORT.POE.ENABLED_HISTORY}'
+          value: 1h
+          description: 'Item ''port.poe.enabled'' History'
+        - macro: '{$ITEM_PORT.POE.STANDARD_HISTORY}'
+          value: 1h
+          description: 'Item ''port.poe.standard'' History'
+        - macro: '{$ITEM_PORT.POE.STATE_HISTORY}'
+          value: 1h
+          description: 'Item ''port.poe.state'' History'
+        - macro: '{$ITEM_PORT.POE.TYPE_HISTORY}'
+          value: 1h
+          description: 'Item ''port.poe.type'' History'
+        - macro: '{$ITEM_PORT.SPEED_HISTORY}'
+          value: 1h
+          description: 'Item ''port.speed'' History'
+        - macro: '{$ITEM_PORT.STATE_HISTORY}'
+          value: 1h
+          description: 'Item ''port.state'' History'
+        - macro: '{$ITEM_PROVISIONEDAT_HISTORY}'
+          value: 1h
+          description: 'Item ''provisionedAt'' History'
+        - macro: '{$ITEM_RADIO.CHANNELWIDTH_HISTORY}'
+          value: 7d
+          description: 'Item ''radio.channelWidth'' History'
+        - macro: '{$ITEM_RADIO.CHANNEL_HISTORY}'
+          value: 7d
+          description: 'Item ''radio.channel'' History'
+        - macro: '{$ITEM_RADIO.STANDARD_HISTORY}'
+          value: 1h
+          description: 'Item ''radio.standard'' History'
+        - macro: '{$ITEM_RADIO.TXRETRIES_HISTORY}'
+          value: 7d
+          description: 'Item ''radio.txRestries'' History'
+        - macro: '{$ITEM_STATE_HISTORY}'
+          value: 1h
+          description: 'Item ''state'' History'
+        - macro: '{$ITEM_STATISTICS.JSON_UPDATE}'
+          value: 5m
+          description: 'Item ''statistics.json'' Update Interval'
+        - macro: '{$ITEM_UPLINK_HISTORY}'
+          value: 7d
+          description: 'Item ''uplink'' History'
+        - macro: '{$ITEM_UPTIME_HISTORY}'
+          value: 7d
+          description: 'Item ''uptime'' History'
+        - macro: '{$TRIGGER_CPUUTIL_AVERAGE}'
+          value: '90'
+          description: 'Trigger ''CPU Utilization'' % trigger'
+        - macro: '{$TRIGGER_CPUUTIL_WARNING}'
+          value: '80'
+          description: 'Trigger ''CPU Utilization'' % trigger'
+        - macro: '{$TRIGGER_DOWNLOAD_AVERAGE}'
+          value: '1000'
+          description: 'Trigger ''Uplink Download'' Mbps Trigger'
+        - macro: '{$TRIGGER_MEMUTIL_AVERAGE}'
+          value: '80'
+          description: 'Trigger ''Memory Utilization'' % trigger'
+        - macro: '{$TRIGGER_MEMUTIL_WARNING}'
+          value: '90'
+          description: 'Trigger ''Memory Utilization'' % trigger'
+        - macro: '{$TRIGGER_TXRETRIES_AVERAGE}'
+          value: '35'
+          description: 'Trigger ''Tx Retries'' % trigger'
+        - macro: '{$TRIGGER_TXRETRIES_TIME}'
+          value: 6h
+          description: 'Trigger ''Tx Retries'' Min Time Range trigger'
+        - macro: '{$TRIGGER_TXRETRIES_WARNING}'
+          value: '25'
+          description: 'Trigger ''Tx Retries'' % trigger'
+        - macro: '{$TRIGGER_UPLOAD_AVERAGE}'
+          value: '1000'
+          description: 'Trigger ''Uplink Upload'' Mbps Trigger'
+    - uuid: d42f2e59a92b4d22a52b99ee35f7ce5f
+      template: 'UniFi Network API - Site'
+      name: 'UniFi Network API - Site'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: bc7f018c55de40f6b0bdf2aa66f6d333
+          name: 'Clients JSON'
+          type: HTTP_AGENT
+          key: clients.json
+          delay: '{$ITEM_CLIENTS.JSON_UPDATE}'
+          history: '0'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.data
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var site_name = '{$SITE.NAME}'
+                  var obj = JSON.parse(value);
+                  
+                  for (i = 0; i < Object.keys(obj).length; i++) {
+                      obj[i]["site_name"] = site_name;
+                  }
+                  
+                  return JSON.stringify(obj)
+          url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites/{HOST.HOST}/clients'
+          query_fields:
+            - name: limit
+              value: '200'
+          headers:
+            - name: Accept
+              value: application/json
+            - name: X-API-KEY
+              value: '{$UNIFI_NETWORK_API_KEY}'
+        - uuid: 4fc9abbf35544c3181ba6971baa6e644
+          name: 'Clients Teleport'
+          type: DEPENDENT
+          key: clients.teleport
+          history: '{$ITEM_CLIENTS.TELEPORT_HISTORY}'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.[?(@.type==''TELEPORT'')].length()'
+          master_item:
+            key: clients.json
+        - uuid: f9465b1988d9478e881e9d0416d66ca2
+          name: 'Clients Total'
+          type: DEPENDENT
+          key: clients.total
+          history: '{$ITEM_CLIENTS.TOTAL_HISTORY}'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.length()
+          master_item:
+            key: clients.json
+        - uuid: 27262286cf8b4fcc8388f74a4904c0de
+          name: 'Clients VPN'
+          type: DEPENDENT
+          key: clients.vpn
+          history: '{$ITEM_CLIENTS.VPN_HISTORY}'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.[?(@.type==''VPN'')].length()'
+          master_item:
+            key: clients.json
+        - uuid: fe65bcb9d3684701b767c932cd45602e
+          name: 'Clients Wired'
+          type: DEPENDENT
+          key: clients.wired
+          history: '{$ITEM_CLIENTS.WIRED_HISTORY}'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.[?(@.type==''WIRED'')].length()'
+          master_item:
+            key: clients.json
+        - uuid: bde0f31d0901467fbc7a301fc6eb58d9
+          name: 'Clients Wireless'
+          type: DEPENDENT
+          key: clients.wireless
+          history: '{$ITEM_CLIENTS.WIRELESS_HISTORY}'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.[?(@.type==''WIRELESS'')].length()'
+          master_item:
+            key: clients.json
+        - uuid: c013d47d65e240e7bf5f682d04ded20d
+          name: 'Devices JSON'
+          type: HTTP_AGENT
+          key: devices.json
+          delay: '{$ITEM_DEVICES.JSON_UPDATE}'
+          history: '0'
+          value_type: TEXT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.data
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var site_name = '{$SITE.NAME}'
+                  var obj = JSON.parse(value);
+                  
+                  for (i = 0; i < Object.keys(obj).length; i++) {
+                      obj[i]["site_name"] = site_name;
+                  }
+                  
+                  return JSON.stringify(obj)
+          url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites/{HOST.HOST}/devices'
+          query_fields:
+            - name: limit
+              value: '200'
+          headers:
+            - name: Accept
+              value: application/json
+            - name: X-API-KEY
+              value: '{$UNIFI_NETWORK_API_KEY}'
+      discovery_rules:
+        - uuid: 71f9d3c0a274480cbe0ab2d13634c56a
+          name: 'Discovery Clients'
+          type: DEPENDENT
+          key: discovery.clients
+          host_prototypes:
+            - uuid: 698daaa185c14e6eb87b13169d335e57
+              host: '{#ID}'
+              name: 'UniFi Network - Site: "{#SITE.NAME}" - Client: "{#NAME}"'
+              group_links:
+                - group:
+                    name: 'UniFi Network Clients'
+              templates:
+                - name: 'UniFi Network API - Client'
+              tags:
+                - tag: 'UniFi Network Site'
+                  value: '{#SITE.NAME}'
+                - tag: 'UniFi Network Type'
+                  value: Client
+          master_item:
+            key: clients.json
+          lld_macro_paths:
+            - lld_macro: '{#ID}'
+              path: $.id
+            - lld_macro: '{#NAME}'
+              path: $.name
+            - lld_macro: '{#SITE.NAME}'
+              path: $.site_name
+        - uuid: 5074ac28f8ca492399cd570382947a68
+          name: 'Discovery Devices'
+          type: DEPENDENT
+          key: discovery.devices
+          host_prototypes:
+            - uuid: b3032d54e5454298ad0588fd1c6c8a41
+              host: '{#ID}'
+              name: 'UniFi Network - Site: "{#SITE.NAME}" - Device: "{#NAME}"'
+              group_links:
+                - group:
+                    name: 'UniFi Network Devices'
+              templates:
+                - name: 'UniFi Network API - Device'
+              tags:
+                - tag: 'UniFi Network Site'
+                  value: '{#SITE.NAME}'
+                - tag: 'UniFi Network Type'
+                  value: Device
+          master_item:
+            key: devices.json
+          lld_macro_paths:
+            - lld_macro: '{#ID}'
+              path: $.id
+            - lld_macro: '{#NAME}'
+              path: $.name
+            - lld_macro: '{#SITE.NAME}'
+              path: $.site_name
+      macros:
+        - macro: '{$ITEM_CLIENTS.JSON_UPDATE}'
+          value: 10m
+          description: 'Item ''clients.json'' Update Interval'
+        - macro: '{$ITEM_CLIENTS.TELEPORT_HISTORY}'
+          value: 7d
+          description: 'Item ''clients.teleport'' History'
+        - macro: '{$ITEM_CLIENTS.TOTAL_HISTORY}'
+          value: 7d
+          description: 'Item ''clients.total'' History'
+        - macro: '{$ITEM_CLIENTS.VPN_HISTORY}'
+          value: 7d
+          description: 'Item ''clients.vpn'' History'
+        - macro: '{$ITEM_CLIENTS.WIRED_HISTORY}'
+          value: 7d
+          description: 'Item ''clients.wired'' History'
+        - macro: '{$ITEM_CLIENTS.WIRELESS_HISTORY}'
+          value: 7d
+          description: 'Item ''clients.wireless'' History'
+        - macro: '{$ITEM_DEVICES.JSON_UPDATE}'
+          value: 1h
+          description: 'Item ''devices.json'' Update Interval'
+        - macro: '{$SITE.ID}'
+          description: 'Site ID. Used by Template, DO NOT CHANGE OR DELETE.'
+        - macro: '{$SITE.NAME}'
+          description: 'Site NAME. Used by Template, DO NOT CHANGE OR DELETE.'
