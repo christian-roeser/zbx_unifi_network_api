@@ -621,6 +621,7 @@ zabbix_export:
           type: DEPENDENT
           key: uptime
           history: '{$ITEM_UPTIME_HISTORY}'
+          value_type: UNSIGNED
           units: uptime
           preprocessing:
             - type: JSONPATH
@@ -1101,10 +1102,12 @@ zabbix_export:
               parameters:
                 - |
                   var site_name = '{$SITE.NAME}'
+                  var site_id = '{$SITE.ID}'
                   var obj = JSON.parse(value);
 
                   for (i = 0; i < Object.keys(obj).length; i++) {
                       obj[i]["site_name"] = site_name;
+                      obj[i]["site_id"] = site_id;
                   }
 
                   return JSON.stringify(obj)
@@ -1187,10 +1190,12 @@ zabbix_export:
               parameters:
                 - |
                   var site_name = '{$SITE.NAME}'
+                  var site_id = '{$SITE.ID}'
                   var obj = JSON.parse(value);
 
                   for (i = 0; i < Object.keys(obj).length; i++) {
                       obj[i]["site_name"] = site_name;
+                      obj[i]["site_id"] = site_id;
                   }
 
                   return JSON.stringify(obj)
@@ -1217,6 +1222,13 @@ zabbix_export:
                     name: 'UniFi Network Clients'
               templates:
                 - name: 'UniFi Network API - Client'
+              macros:
+                - macro: '{$SITE.ID}'
+                  value: '{#SITE.ID}'
+                  description: 'Site ID. Used by Template, DO NOT CHANGE OR DELETE.'
+                - macro: '{$SITE.NAME}'
+                  value: '{#SITE.NAME}'
+                  description: 'Site NAME. Used by Template, DO NOT CHANGE OR DELETE.'
               tags:
                 - tag: 'UniFi Network Site'
                   value: '{#SITE.NAME}'
@@ -1229,6 +1241,8 @@ zabbix_export:
               path: $.id
             - lld_macro: '{#NAME}'
               path: $.name
+            - lld_macro: '{#SITE.ID}'
+              path: $.site_id
             - lld_macro: '{#SITE.NAME}'
               path: $.site_name
         - uuid: 5074ac28f8ca492399cd570382947a68
@@ -1244,6 +1258,13 @@ zabbix_export:
                     name: 'UniFi Network Devices'
               templates:
                 - name: 'UniFi Network API - Device'
+              macros:
+                - macro: '{$SITE.ID}'
+                  value: '{#SITE.ID}'
+                  description: 'Site ID. Used by Template, DO NOT CHANGE OR DELETE.'
+                - macro: '{$SITE.NAME}'
+                  value: '{#SITE.NAME}'
+                  description: 'Site NAME. Used by Template, DO NOT CHANGE OR DELETE.'
               tags:
                 - tag: 'UniFi Network Site'
                   value: '{#SITE.NAME}'
@@ -1256,6 +1277,8 @@ zabbix_export:
               path: $.id
             - lld_macro: '{#NAME}'
               path: $.name
+            - lld_macro: '{#SITE.ID}'
+              path: $.site_id
             - lld_macro: '{#SITE.NAME}'
               path: $.site_name
       macros:
