@@ -757,6 +757,7 @@ zabbix_export:
               key: 'port.poe.type[{#IDX}]'
               history: '{$ITEM_PORT.POE.TYPE_HISTORY}'
               trends: '0'
+              value_type: TEXT
               preprocessing:
                 - type: JSONPATH
                   parameters:
@@ -924,7 +925,7 @@ zabbix_export:
             - uuid: ac233077f365459c9619598831f7b9a4
               name: 'Radio Statistics "{#FRQ}" - Tx Retries'
               type: DEPENDENT
-              key: 'radios.txRestries[{#FRQ}]'
+              key: 'radios.txRetries[{#FRQ}]'
               history: '{$ITEM_RADIO.TXRETRIES_HISTORY}'
               value_type: FLOAT
               units: '%'
@@ -942,16 +943,16 @@ zabbix_export:
                 - tag: radios
               trigger_prototypes:
                 - uuid: e5c6ab56a28a422b9857e9507f807a0e
-                  expression: 'min(/UniFi Network API - Device/radios.txRestries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_AVERAGE}'
+                  expression: 'min(/UniFi Network API - Device/radios.txRetries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_AVERAGE}'
                   name: 'Radios "{#FRQ}GHz" Tx Retries > {$TRIGGER_TXRETRIES_AVERAGE} % in last "{$TRIGGER_TXRETRIES_TIME}"'
                   priority: AVERAGE
                 - uuid: 8482d97fc9df4dbcbda4b891c134ec8d
-                  expression: 'min(/UniFi Network API - Device/radios.txRestries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_WARNING}'
+                  expression: 'min(/UniFi Network API - Device/radios.txRetries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_WARNING}'
                   name: 'Radios "{#FRQ}GHz" Tx Retries > {$TRIGGER_TXRETRIES_WARNING} % in last "{$TRIGGER_TXRETRIES_TIME}"'
                   priority: WARNING
                   dependencies:
                     - name: 'Radios "{#FRQ}GHz" Tx Retries > {$TRIGGER_TXRETRIES_AVERAGE} % in last "{$TRIGGER_TXRETRIES_TIME}"'
-                      expression: 'min(/UniFi Network API - Device/radios.txRestries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_AVERAGE}'
+                      expression: 'min(/UniFi Network API - Device/radios.txRetries[{#FRQ}],{$TRIGGER_TXRETRIES_TIME})>{$TRIGGER_TXRETRIES_AVERAGE}'
           master_item:
             key: statistics.json
           lld_macro_paths:
@@ -1039,7 +1040,7 @@ zabbix_export:
           description: 'Item ''radio.standard'' History'
         - macro: '{$ITEM_RADIO.TXRETRIES_HISTORY}'
           value: 7d
-          description: 'Item ''radio.txRestries'' History'
+          description: 'Item ''radio.txRetries'' History'
         - macro: '{$ITEM_STATE_HISTORY}'
           value: 1h
           description: 'Item ''state'' History'
@@ -1062,10 +1063,10 @@ zabbix_export:
           value: '1000'
           description: 'Trigger ''Uplink Download'' Mbps Trigger'
         - macro: '{$TRIGGER_MEMUTIL_AVERAGE}'
-          value: '80'
+          value: '90'
           description: 'Trigger ''Memory Utilization'' % trigger'
         - macro: '{$TRIGGER_MEMUTIL_WARNING}'
-          value: '90'
+          value: '80'
           description: 'Trigger ''Memory Utilization'' % trigger'
         - macro: '{$TRIGGER_TXRETRIES_AVERAGE}'
           value: '35'
@@ -1101,11 +1102,11 @@ zabbix_export:
                 - |
                   var site_name = '{$SITE.NAME}'
                   var obj = JSON.parse(value);
-                  
+
                   for (i = 0; i < Object.keys(obj).length; i++) {
                       obj[i]["site_name"] = site_name;
                   }
-                  
+
                   return JSON.stringify(obj)
           url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites/{HOST.HOST}/clients'
           query_fields:
@@ -1187,11 +1188,11 @@ zabbix_export:
                 - |
                   var site_name = '{$SITE.NAME}'
                   var obj = JSON.parse(value);
-                  
+
                   for (i = 0; i < Object.keys(obj).length; i++) {
                       obj[i]["site_name"] = site_name;
                   }
-                  
+
                   return JSON.stringify(obj)
           url: 'https://{$UNIFI_NETWORK_API_ADDRESS}/proxy/network/integration/v1/sites/{HOST.HOST}/devices'
           query_fields:
